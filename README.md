@@ -12,8 +12,8 @@ A web app that lets you play Tetris using hand gestures, full-body poses, or eye
 Choose a tracking mode in the settings panel:
 
 - **Hand**: tilt to move, point one index finger to rotate, or point downward to drop
-- **Full body**: lean to move, raise an arm to rotate, or bend your knees to drop
-- **Eyes only**: look to the side to move, wink to rotate, or close both eyes to drop
+- **Full body**: hold one arm out sideways to move in that direction, raise both hands to rotate, or bend your knees to drop
+- **Eyes only**: look to the side to move, wink the left eye to rotate, or wink the right eye to drop
 
 Choose **Custom poses** to record a separate pose for each command. Templates are saved only in your browser. Eye mode should be calibrated while looking at the center of the screen.
 

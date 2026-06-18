@@ -282,19 +282,24 @@ export class HandTracker {
     }
 
     recognizeBodyGesture(landmarks) {
-        const shoulder = this.midpoint(landmarks[11], landmarks[12]);
-        const hip = this.midpoint(landmarks[23], landmarks[24]);
-        const torsoAngle = Math.atan2(shoulder.x - hip.x, hip.y - shoulder.y) * 180 / Math.PI;
-        const armRaised = landmarks[15].y < landmarks[11].y - 0.08
-            || landmarks[16].y < landmarks[12].y - 0.08;
+        const leftShoulder = landmarks[11];
+        const rightShoulder = landmarks[12];
+        const leftWrist = landmarks[15];
+        const rightWrist = landmarks[16];
+        const bothArmsRaised = leftWrist.y < leftShoulder.y - 0.08
+            && rightWrist.y < rightShoulder.y - 0.08;
+        const leftArmExtended = leftWrist.x > leftShoulder.x + 0.12
+            && Math.abs(leftWrist.y - leftShoulder.y) < 0.15;
+        const rightArmExtended = rightWrist.x < rightShoulder.x - 0.12
+            && Math.abs(rightWrist.y - rightShoulder.y) < 0.15;
         const kneeAngle = Math.min(
             this.jointAngle(landmarks[23], landmarks[25], landmarks[27]),
             this.jointAngle(landmarks[24], landmarks[26], landmarks[28])
         );
 
-        if (armRaised) return 'rotate';
-        if (torsoAngle > this.tiltAngle) return 'left';
-        if (torsoAngle < -this.tiltAngle) return 'right';
+        if (bothArmsRaised) return 'rotate';
+        if (leftArmExtended && !rightArmExtended) return 'left';
+        if (rightArmExtended && !leftArmExtended) return 'right';
         if (kneeAngle < 135) return 'down';
         return null;
     }
@@ -319,8 +324,8 @@ export class HandTracker {
 
     recognizeEyeGesture({ gaze, blinkLeft, blinkRight }) {
         if (blinkLeft > 0.62 && blinkRight < 0.4) return 'rotate';
-        if (blinkRight > 0.62 && blinkLeft < 0.4) return 'rotate';
-        if (blinkLeft > 0.58 && blinkRight > 0.58) return 'down';
+        if (blinkRight > 0.62 && blinkLeft < 0.4) return 'down';
+        if (blinkLeft > 0.58 && blinkRight > 0.58) return null;
         const offset = gaze - this.eyeCalibration.gaze;
         if (offset > this.dropThreshold) return 'left';
         if (offset < -this.dropThreshold) return 'right';

@@ -3,8 +3,8 @@ import { HandTracker } from './hand/tracker.js';
 
 const MODE_HELP = {
     hand: 'Tilt your hand to move, point one index finger to rotate, or point the hand downward to drop.',
-    body: 'Lean left or right to move, raise either arm to rotate, or bend your knees to drop.',
-    eyes: 'Look left or right to move, wink to rotate, or close both eyes to drop.'
+    body: 'Hold your left or right arm out sideways to move. Raise both hands to rotate. Squat to move down.',
+    eyes: 'Look left or right to move. Wink your left eye to rotate, or wink your right eye to move down.'
 };
 const COMMAND_LABELS = {
     left: 'Move left',
@@ -29,7 +29,7 @@ class App {
 
         this.setupEventListeners();
         this.setupSettingsListeners();
-        this.applySavedSettings();
+        this.applyInitialSettings();
     }
 
     setupSettingsListeners() {
@@ -41,31 +41,6 @@ class App {
         this.registrationStatus = document.getElementById('registration-status');
         this.progressBar = document.getElementById('recording-progress-bar');
         this.recordPoseBtn = document.getElementById('record-pose-btn');
-
-        const tiltAngleSlider = document.getElementById('tilt-angle');
-        const gestureDelaySlider = document.getElementById('gesture-delay');
-        const dropThresholdSlider = document.getElementById('drop-threshold');
-
-        tiltAngleSlider.addEventListener('input', event => {
-            const value = Number.parseInt(event.target.value, 10);
-            document.getElementById('tilt-angle-val').textContent = value;
-            this.handTracker.tiltAngle = value;
-            this.saveSetting('tiltAngle', value);
-        });
-
-        gestureDelaySlider.addEventListener('input', event => {
-            const value = Number.parseInt(event.target.value, 10);
-            document.getElementById('gesture-delay-val').textContent = value;
-            this.handTracker.gestureThreshold = value;
-            this.saveSetting('gestureThreshold', value);
-        });
-
-        dropThresholdSlider.addEventListener('input', event => {
-            const value = Number.parseFloat(event.target.value);
-            document.getElementById('drop-threshold-val').textContent = value.toFixed(2);
-            this.handTracker.dropThreshold = value;
-            this.saveSetting('dropThreshold', value);
-        });
 
         this.modeSelect.addEventListener('change', async event => {
             this.setSettingsBusy(true);
@@ -134,41 +109,11 @@ class App {
         });
     }
 
-    applySavedSettings() {
-        let settings = {};
-        try {
-            settings = JSON.parse(localStorage.getItem('tetris-tracking-settings')) || {};
-        } catch {
-            settings = {};
-        }
-        const assignRange = (id, value, displayId, formatter = String) => {
-            if (value == null) return;
-            document.getElementById(id).value = value;
-            document.getElementById(displayId).textContent = formatter(value);
-        };
-
-        this.handTracker.tiltAngle = settings.tiltAngle ?? this.handTracker.tiltAngle;
-        this.handTracker.gestureThreshold = settings.gestureThreshold ?? this.handTracker.gestureThreshold;
-        this.handTracker.dropThreshold = settings.dropThreshold ?? this.handTracker.dropThreshold;
-        assignRange('tilt-angle', settings.tiltAngle, 'tilt-angle-val');
-        assignRange('gesture-delay', settings.gestureThreshold, 'gesture-delay-val');
-        assignRange('drop-threshold', settings.dropThreshold, 'drop-threshold-val', value => Number(value).toFixed(2));
-
+    applyInitialSettings() {
         this.modeSelect.value = this.handTracker.mode;
         this.profileSelect.value = this.handTracker.profile;
         this.updateSettingsVisibility();
         this.updateRegisteredCommands();
-    }
-
-    saveSetting(key, value) {
-        let settings = {};
-        try {
-            settings = JSON.parse(localStorage.getItem('tetris-tracking-settings')) || {};
-        } catch {
-            settings = {};
-        }
-        settings[key] = value;
-        localStorage.setItem('tetris-tracking-settings', JSON.stringify(settings));
     }
 
     updateSettingsVisibility() {
