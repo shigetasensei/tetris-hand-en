@@ -60,6 +60,9 @@ export class TetrisGame {
         this.score = 0;
         this.lines = 0;
         this.level = 1;
+        this.dropCounter = 0;
+        this.dropInterval = 1000;
+        this.lastTime = performance.now();
         this.isGameOver = false;
         this.isPaused = false;
         this.spawnPiece();
@@ -127,15 +130,11 @@ export class TetrisGame {
     }
 
     rotate() {
-        const rotated = [];
-        const N = this.currentPiece.length;
-
-        for (let i = 0; i < N; i++) {
-            rotated[i] = [];
-            for (let j = 0; j < N; j++) {
-                rotated[i][j] = this.currentPiece[N - j - 1][i];
-            }
-        }
+        // Transpose the complete rectangular matrix, then reverse each column.
+        // Using the row count for both axes truncated I, T, S, Z, J and L pieces.
+        const rotated = this.currentPiece[0].map((_, columnIndex) =>
+            this.currentPiece.map(row => row[columnIndex]).reverse()
+        );
 
         if (!this.collision(0, 0, rotated)) {
             this.currentPiece = rotated;

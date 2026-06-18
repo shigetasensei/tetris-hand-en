@@ -1,6 +1,6 @@
-# Hand Tracking Tetris
+# Motion Tracking Tetris
 
-A web app that lets you play Tetris with hand gestures, powered by MediaPipe hand tracking.
+A web app that lets you play Tetris using hand gestures, full-body poses, or eye movements, powered by MediaPipe.
 
 ## 📚 Learning Documents
 
@@ -9,11 +9,13 @@ A web app that lets you play Tetris with hand gestures, powered by MediaPipe han
 
 ## Demo
 
-Point your hand at the camera and use these gestures to play Tetris:
-- 👈 Tilt your hand left: move the piece left
-- 👉 Tilt your hand right: move the piece right
-- 👇 Point your hand down: hard drop the piece
-- ☝️ Raise your index finger: rotate the piece
+Choose a tracking mode in the settings panel:
+
+- **Hand**: tilt to move, point one index finger to rotate, or point downward to drop
+- **Full body**: lean to move, raise an arm to rotate, or bend your knees to drop
+- **Eyes only**: look to the side to move, wink to rotate, or close both eyes to drop
+
+Choose **Custom poses** to record a separate pose for each command. Templates are saved only in your browser. Eye mode should be calibrated while looking at the center of the screen.
 
 ## Detailed Setup with GitHub Codespaces
 

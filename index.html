@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Tracking Tetris</title>
+    <title>Motion Tracking Tetris</title>
     <link rel="stylesheet" href="/styles/main.css">
 </head>
 <body>
@@ -17,14 +17,69 @@
                 </div>
             </div>
             <div class="camera-section">
-                <video id="camera-video" autoplay></video>
+                <video id="camera-video" autoplay muted playsinline></video>
                 <canvas id="camera-canvas"></canvas>
                 <div class="gesture-info">
                     <div class="gesture-status">
-                        Hand detection: <span id="hand-status">Waiting</span>
+                        Tracking: <span id="hand-status">Waiting</span>
                     </div>
                     <div class="gesture-type">
                         Gesture: <span id="gesture-type">-</span>
+                    </div>
+                </div>
+                <div class="settings-panel">
+                    <h3>Tracking Settings</h3>
+                    <div class="setting-grid">
+                        <div class="setting-item">
+                            <label for="tracking-mode">Tracking mode</label>
+                            <select id="tracking-mode">
+                                <option value="hand">Hand</option>
+                                <option value="body">Full body</option>
+                                <option value="eyes">Eyes only</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="control-profile">Control profile</label>
+                            <select id="control-profile">
+                                <option value="standard">Standard controls</option>
+                                <option value="custom">Custom poses</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p id="mode-help" class="mode-help"></p>
+                    <div class="setting-item">
+                        <label for="tilt-angle">Tilt Threshold: <span id="tilt-angle-val">30</span>°</label>
+                        <input type="range" id="tilt-angle" min="10" max="45" value="30">
+                    </div>
+                    <div class="setting-item">
+                        <label for="gesture-delay">Trigger Delay: <span id="gesture-delay-val">300</span>ms</label>
+                        <input type="range" id="gesture-delay" min="50" max="500" step="10" value="300">
+                    </div>
+                    <div class="setting-item">
+                        <label for="drop-threshold">Drop Y-Diff: <span id="drop-threshold-val">0.10</span></label>
+                        <input type="range" id="drop-threshold" min="0.05" max="0.25" step="0.01" value="0.10">
+                    </div>
+                    <div id="eye-calibration" class="setting-actions" hidden>
+                        <button type="button" id="calibrate-eyes-btn" class="secondary-btn">Calibrate center gaze</button>
+                        <span id="eye-calibration-status" class="inline-status" aria-live="polite"></span>
+                    </div>
+                    <div id="pose-registration" class="pose-registration" hidden>
+                        <h4>Custom command pose</h4>
+                        <p>Hold one pose until recording completes.</p>
+                        <div class="registration-controls">
+                            <select id="pose-command" aria-label="Command to register">
+                                <option value="left">Move left</option>
+                                <option value="right">Move right</option>
+                                <option value="down">Move down</option>
+                                <option value="rotate">Rotate</option>
+                            </select>
+                            <button type="button" id="record-pose-btn">Record pose</button>
+                            <button type="button" id="reset-poses-btn" class="danger-btn">Reset</button>
+                        </div>
+                        <div class="recording-progress" aria-live="polite">
+                            <div id="recording-progress-bar"></div>
+                        </div>
+                        <p id="registration-status">No custom poses registered.</p>
                     </div>
                 </div>
             </div>
