@@ -136,9 +136,30 @@ export class TetrisGame {
             this.currentPiece.map(row => row[columnIndex]).reverse()
         );
 
-        if (!this.collision(0, 0, rotated)) {
-            this.currentPiece = rotated;
+        // Try the current position first, then small wall and floor kicks.
+        const kicks = [
+            { x: 0, y: 0 },
+            { x: -1, y: 0 },
+            { x: 1, y: 0 },
+            { x: -2, y: 0 },
+            { x: 2, y: 0 },
+            { x: -3, y: 0 },
+            { x: 3, y: 0 },
+            { x: 0, y: -1 },
+            { x: -1, y: -1 },
+            { x: 1, y: -1 }
+        ];
+
+        for (const kick of kicks) {
+            if (!this.collision(kick.x, kick.y, rotated)) {
+                this.currentPiece = rotated;
+                this.currentX += kick.x;
+                this.currentY += kick.y;
+                return true;
+            }
         }
+
+        return false;
     }
 
     moveLeft() {
