@@ -181,6 +181,21 @@ export class TetrisGame {
         }
     }
 
+    hardDrop() {
+        let droppedRows = 0;
+        while (!this.collision(0, 1)) {
+            this.currentY++;
+            droppedRows++;
+        }
+
+        this.score += droppedRows * 2;
+        this.merge();
+        this.checkLines();
+        this.spawnPiece();
+        this.dropCounter = 0;
+        return droppedRows;
+    }
+
     drop() {
         if (!this.collision(0, 1)) {
             this.currentY++;

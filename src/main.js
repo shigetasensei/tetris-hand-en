@@ -149,7 +149,7 @@ class App {
             const keyMap = {
                 ArrowLeft: 'left',
                 ArrowRight: 'right',
-                ArrowDown: 'down',
+                ArrowDown: 'softDown',
                 ArrowUp: 'rotate',
                 ' ': 'rotate'
             };
@@ -166,7 +166,8 @@ class App {
         const actions = {
             left: () => this.tetrisGame.moveLeft(),
             right: () => this.tetrisGame.moveRight(),
-            down: () => this.tetrisGame.softDrop(),
+            down: () => this.tetrisGame.hardDrop(),
+            softDown: () => this.tetrisGame.softDrop(),
             rotate: () => this.tetrisGame.rotate()
         };
         actions[command]?.();

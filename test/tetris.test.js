@@ -49,3 +49,20 @@ test('rotation fails without changing the piece when all kicks collide', () => {
     assert.equal(game.currentX, 4);
     assert.equal(game.currentY, 5);
 });
+
+test('hard drop locks the piece, scores distance, and resets the timer', () => {
+    const game = createGame();
+    game.currentPiece = [[2, 2], [2, 2]];
+    game.currentX = 4;
+    game.currentY = 0;
+    game.dropCounter = 750;
+
+    const droppedRows = game.hardDrop();
+
+    assert.equal(droppedRows, 18);
+    assert.equal(game.score, 36);
+    assert.equal(game.dropCounter, 0);
+    assert.deepEqual(game.board[18].slice(4, 6), [2, 2]);
+    assert.deepEqual(game.board[19].slice(4, 6), [2, 2]);
+    assert.equal(game.currentY, 0);
+});

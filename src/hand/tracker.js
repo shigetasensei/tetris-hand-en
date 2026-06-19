@@ -510,7 +510,7 @@ export class HandTracker {
         }
         if (now - this.gestureStartTime < this.gestureThreshold) return;
 
-        const repeatable = gesture !== 'rotate';
+        const repeatable = gesture === 'left' || gesture === 'right';
         if (!this.lastFireTime || (repeatable && now - this.lastFireTime >= this.gestureThreshold)) {
             this.gestureCallback?.(gesture);
             this.lastFireTime = now;

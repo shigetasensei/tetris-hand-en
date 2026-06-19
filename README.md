@@ -11,16 +11,16 @@ Choose a tracking mode and control profile in **Tracking Settings**.
 | Move left | Tilt the hand left | Hold the left arm sideways | Look left |
 | Move right | Tilt the hand right | Hold the right arm sideways | Look right |
 | Rotate | Raise only the index finger | Raise both hands | Wink the left eye |
-| Move down | Point the hand downward | Squat | Wink the right eye |
+| Hard drop | Point the hand downward | Squat | Wink the right eye |
 
-The down command currently moves the piece by one row; it is a soft drop, not an instant hard drop.
+The tracking `down` command instantly drops and locks the current piece. The keyboard's Arrow Down key remains a one-row soft drop.
 
 For **Custom poses**, select a command, press **Record pose**, and hold the pose until recording finishes. Templates are stored in your browser's `localStorage`; camera images are not saved. In eye mode, look at the center of the screen and press **Calibrate center gaze** before playing.
 
 Keyboard controls are also available:
 
 - Arrow Left / Arrow Right: move
-- Arrow Down: soft drop
+- Arrow Down: soft drop by one row
 - Arrow Up / Space: rotate
 
 ## Quick Start
