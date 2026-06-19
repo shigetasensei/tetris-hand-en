@@ -93,15 +93,17 @@ To make tilt recognition more sensitive, reduce the default `tiltAngle` in the `
 - both wrists above their shoulders → `rotate`
 - left arm held sideways → `left`
 - right arm held sideways → `right`
-- knee angle below the squat threshold → `down`
+- knee angle below the squat threshold, or a calibrated shoulder drop → `down`
 
 ### Eye controls
 
-`recognizeEyeGesture(eyeState)` implements these defaults:
+`recognizeEyeGesture(eyeState)` supports two standard styles. **No wink required** is the default:
 
 - horizontal gaze offset → `left` or `right`
-- left-eye wink → `rotate`
-- right-eye wink → `down`
+- both eyes closed → `rotate`
+- upward gaze → `down`
+
+The optional **Wink controls** style uses left-eye wink for `rotate` and right-eye wink for `down`.
 
 Center calibration stores the neutral gaze value in `localStorage`.
 
@@ -166,7 +168,7 @@ Reusing an existing command requires no change in `src/main.js`. If you introduc
 
 ## Add Debug Output
 
-Use the existing status callback instead of querying old MediaPipe result fields:
+Open **Tracking debug** in the settings panel to see inference FPS and the relevant hand, body, or eye measurements. The panel uses the existing status callback instead of querying old MediaPipe result fields:
 
 ```javascript
 this.handTracker.onStatus(status => {

@@ -2,14 +2,14 @@ import { TetrisGame } from './game/tetris.js';
 import { HandTracker } from './hand/tracker.js';
 
 const MODE_HELP = {
-    hand: 'Tilt your hand to move, point one index finger to rotate, or point the hand downward to drop.',
-    body: 'Hold your left or right arm out sideways to move. Raise both hands to rotate. Squat to move down.',
-    eyes: 'Look left or right to move. Wink your left eye to rotate, or wink your right eye to move down.'
+    hand: 'Tilt your hand to move, point one index finger to rotate, or point the hand downward to hard drop.',
+    body: 'Hold your left or right arm out sideways to move. Raise both hands to rotate. Squat to hard drop.',
+    eyes: 'Look left or right to move. Choose a wink-free or wink control style below.'
 };
 const COMMAND_LABELS = {
     left: 'Move left',
     right: 'Move right',
-    down: 'Move down',
+    down: 'Hard drop',
     rotate: 'Rotate'
 };
 
@@ -38,6 +38,8 @@ class App {
         this.modeHelp = document.getElementById('mode-help');
         this.registrationPanel = document.getElementById('pose-registration');
         this.eyeCalibrationPanel = document.getElementById('eye-calibration');
+        this.eyeControlSettings = document.getElementById('eye-control-settings');
+        this.eyeControlStyle = document.getElementById('eye-control-style');
         this.registrationStatus = document.getElementById('registration-status');
         this.progressBar = document.getElementById('recording-progress-bar');
         this.recordPoseBtn = document.getElementById('record-pose-btn');
@@ -60,6 +62,11 @@ class App {
             this.handTracker.setProfile(event.target.value);
             this.updateSettingsVisibility();
             this.updateRegisteredCommands();
+        });
+
+        this.eyeControlStyle.addEventListener('change', event => {
+            this.handTracker.setEyeControlStyle(event.target.value);
+            this.updateSettingsVisibility();
         });
 
         this.recordPoseBtn.addEventListener('click', () => {
@@ -90,6 +97,7 @@ class App {
             document.getElementById('gesture-type').textContent = status.gesture
                 ? COMMAND_LABELS[status.gesture]
                 : '-';
+            this.updateDebugDisplay(status);
         });
 
         this.handTracker.onRegistration(event => {
@@ -112,14 +120,40 @@ class App {
     applyInitialSettings() {
         this.modeSelect.value = this.handTracker.mode;
         this.profileSelect.value = this.handTracker.profile;
+        this.eyeControlStyle.value = this.handTracker.eyeControlStyle;
         this.updateSettingsVisibility();
         this.updateRegisteredCommands();
     }
 
     updateSettingsVisibility() {
-        this.modeHelp.textContent = MODE_HELP[this.handTracker.mode];
+        if (this.handTracker.mode === 'eyes') {
+            this.modeHelp.textContent = this.handTracker.eyeControlStyle === 'wink'
+                ? 'Look left or right to move. Wink left to rotate and wink right to hard drop.'
+                : 'Look left or right to move. Close both eyes to rotate and look up to hard drop.';
+        } else {
+            this.modeHelp.textContent = MODE_HELP[this.handTracker.mode];
+        }
         this.registrationPanel.hidden = this.handTracker.profile !== 'custom';
         this.eyeCalibrationPanel.hidden = this.handTracker.mode !== 'eyes';
+        this.eyeControlSettings.hidden = this.handTracker.mode !== 'eyes';
+    }
+
+    updateDebugDisplay(status) {
+        const metrics = status.metrics || {};
+        const lines = [
+            `mode: ${status.mode}`,
+            `detected: ${status.detected ? 'yes' : 'no'}`,
+            `gesture: ${status.gesture || 'none'}`,
+            `inference FPS: ${Number(metrics.fps || 0).toFixed(1)}`
+        ];
+        if (metrics.handTilt !== undefined) lines.push(`hand tilt: ${metrics.handTilt.toFixed(1)}°`);
+        if (metrics.gazeOffset !== undefined) lines.push(`gaze x: ${metrics.gazeOffset.toFixed(3)}`);
+        if (metrics.verticalGazeOffset !== undefined) lines.push(`gaze y: ${metrics.verticalGazeOffset.toFixed(3)}`);
+        if (metrics.shoulderDrop !== undefined) lines.push(`shoulder drop: ${metrics.shoulderDrop.toFixed(3)}`);
+        if (metrics.kneeAngle !== undefined) {
+            lines.push(`knee angle: ${metrics.kneeAngle === null ? 'not visible' : `${metrics.kneeAngle.toFixed(1)}°`}`);
+        }
+        document.getElementById('tracking-debug').textContent = lines.join('\n');
     }
 
     updateRegisteredCommands() {
@@ -132,6 +166,7 @@ class App {
     setSettingsBusy(busy) {
         this.modeSelect.disabled = busy;
         this.profileSelect.disabled = busy;
+        this.eyeControlStyle.disabled = busy;
         if (busy) document.getElementById('hand-status').textContent = 'Loading model...';
     }
 

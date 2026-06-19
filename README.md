@@ -11,9 +11,11 @@ Choose a tracking mode and control profile in **Tracking Settings**.
 | Move left | Tilt the hand left | Hold the left arm sideways | Look left |
 | Move right | Tilt the hand right | Hold the right arm sideways | Look right |
 | Rotate | Raise only the index finger | Raise both hands | Wink the left eye |
-| Hard drop | Point the hand downward | Squat | Wink the right eye |
+| Hard drop | Point the hand downward | Squat or lower the shoulders | Look up (wink-free) / wink right |
 
 The tracking `down` command instantly drops and locks the current piece. The keyboard's Arrow Down key remains a one-row soft drop.
+
+Eye mode defaults to **No wink required**: close both eyes to rotate and look up to hard drop. Select **Wink controls** to use left wink for rotate and right wink for hard drop.
 
 For **Custom poses**, select a command, press **Record pose**, and hold the pose until recording finishes. Templates are stored in your browser's `localStorage`; camera images are not saved. In eye mode, look at the center of the screen and press **Calibrate center gaze** before playing.
 

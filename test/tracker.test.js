@@ -6,9 +6,13 @@ function createTracker() {
     return Object.assign(Object.create(HandTracker.prototype), {
         tiltAngle: 30,
         dropThreshold: 0.1,
+        gazeThreshold: 0.1,
+        gazeVerticalThreshold: 0.12,
         indexExtendThreshold: 0.1,
         fingerExtendThreshold: 0.05,
-        eyeCalibration: { gaze: 0.5 }
+        eyeCalibration: { gaze: 0.5, gazeY: 0.5 },
+        eyeControlStyle: 'accessible',
+        bodyShoulderBaseline: null
     });
 }
 
@@ -62,4 +66,40 @@ test('gaze follows mirrored preview directions', () => {
     const tracker = createTracker();
     assert.equal(tracker.recognizeEyeGesture({ gaze: 0.7, blinkLeft: 0, blinkRight: 0 }), 'right');
     assert.equal(tracker.recognizeEyeGesture({ gaze: 0.3, blinkLeft: 0, blinkRight: 0 }), 'left');
+});
+
+test('wink-free eye controls rotate with both eyes and drop with upward gaze', () => {
+    const tracker = createTracker();
+    assert.equal(tracker.recognizeEyeGesture({
+        gaze: 0.5, gazeY: 0.5, blinkLeft: 0.8, blinkRight: 0.8
+    }), 'rotate');
+    assert.equal(tracker.recognizeEyeGesture({
+        gaze: 0.5, gazeY: 0.3, blinkLeft: 0, blinkRight: 0
+    }), 'down');
+});
+
+test('optional wink controls keep separate rotate and drop gestures', () => {
+    const tracker = createTracker();
+    tracker.eyeControlStyle = 'wink';
+    assert.equal(tracker.recognizeEyeGesture({
+        gaze: 0.5, gazeY: 0.5, blinkLeft: 0.8, blinkRight: 0.1
+    }), 'rotate');
+    assert.equal(tracker.recognizeEyeGesture({
+        gaze: 0.5, gazeY: 0.5, blinkLeft: 0.1, blinkRight: 0.8
+    }), 'down');
+});
+
+test('shoulder drop works when leg landmarks are not visible', () => {
+    const tracker = createTracker();
+    tracker.bodyShoulderBaseline = 0.3;
+    const pose = createStraightPose();
+    for (const index of [23, 24, 25, 26, 27, 28]) pose[index].visibility = 0.1;
+    pose[11].y = 0.4;
+    pose[12].y = 0.4;
+    pose[15] = { x: 0.4, y: 0.65 };
+    pose[16] = { x: 0.6, y: 0.65 };
+
+    assert.equal(tracker.recognizeBodyGesture(pose), 'down');
+    assert.equal(tracker.lastDebugMetrics.legsVisible, false);
+    assert.equal(tracker.lastDebugMetrics.kneeAngle, null);
 });

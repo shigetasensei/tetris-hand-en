@@ -13,8 +13,8 @@ const MODEL_PATHS = {
     body: `${MODEL_ROOT}/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
     eyes: `${MODEL_ROOT}/face_landmarker/face_landmarker/float16/1/face_landmarker.task`
 };
-const TEMPLATE_STORAGE_KEY = 'tetris-tracking-templates-v2';
-const EYE_CALIBRATION_KEY = 'tetris-eye-calibration-v2';
+const TEMPLATE_STORAGE_KEY = 'tetris-tracking-templates-v3';
+const EYE_CALIBRATION_KEY = 'tetris-eye-calibration-v3';
 const COMMANDS = ['left', 'right', 'down', 'rotate'];
 
 export class HandTracker {
@@ -34,14 +34,17 @@ export class HandTracker {
         this.gestureThreshold = 300;
         this.tiltAngle = 30;
         this.dropThreshold = 0.1;
+        this.gazeThreshold = 0.1;
+        this.gazeVerticalThreshold = 0.12;
         this.indexExtendThreshold = 0.1;
         this.fingerExtendThreshold = 0.05;
         this.customThreshold = 0.2;
 
         this.mode = localStorage.getItem('tetris-tracking-mode') || 'hand';
         this.profile = localStorage.getItem('tetris-control-profile') || 'standard';
+        this.eyeControlStyle = localStorage.getItem('tetris-eye-control-style') || 'accessible';
         this.templates = this.loadJson(TEMPLATE_STORAGE_KEY, {});
-        this.eyeCalibration = this.loadJson(EYE_CALIBRATION_KEY, { gaze: 0.5 });
+        this.eyeCalibration = this.loadJson(EYE_CALIBRATION_KEY, { gaze: 0.5, gazeY: 0.5 });
 
         this.vision = null;
         this.landmarker = null;
@@ -51,7 +54,10 @@ export class HandTracker {
         this.animationFrameId = null;
         this.lastVideoTime = -1;
         this.lastInferenceTime = 0;
+        this.inferenceFps = 0;
         this.lastFeatures = null;
+        this.lastDebugMetrics = {};
+        this.bodyShoulderBaseline = null;
         this.recording = null;
     }
 
@@ -144,6 +150,7 @@ export class HandTracker {
         localStorage.setItem('tetris-tracking-mode', mode);
         this.recording = null;
         this.resetGestureState();
+        this.bodyShoulderBaseline = null;
         this.emitStatus(false, null, `Loading ${mode} model...`);
         if (this.running && this.stream) await this.createLandmarker();
     }
@@ -151,6 +158,12 @@ export class HandTracker {
     setProfile(profile) {
         this.profile = profile === 'custom' ? 'custom' : 'standard';
         localStorage.setItem('tetris-control-profile', this.profile);
+        this.resetGestureState();
+    }
+
+    setEyeControlStyle(style) {
+        this.eyeControlStyle = style === 'wink' ? 'wink' : 'accessible';
+        localStorage.setItem('tetris-eye-control-style', this.eyeControlStyle);
         this.resetGestureState();
     }
 
@@ -163,6 +176,12 @@ export class HandTracker {
         if (timestamp - this.lastInferenceTime < 50) return;
         if (this.video.currentTime === this.lastVideoTime) return;
 
+        if (this.lastInferenceTime > 0) {
+            const currentFps = 1000 / (timestamp - this.lastInferenceTime);
+            this.inferenceFps = this.inferenceFps
+                ? this.inferenceFps * 0.8 + currentFps * 0.2
+                : currentFps;
+        }
         this.lastInferenceTime = timestamp;
         this.lastVideoTime = this.video.currentTime;
 
@@ -183,6 +202,7 @@ export class HandTracker {
         } else {
             this.lastVideoTime = -1;
             this.lastInferenceTime = 0;
+            this.inferenceFps = 0;
         }
     }
 
@@ -220,7 +240,10 @@ export class HandTracker {
         this.video.srcObject = null;
         this.lastVideoTime = -1;
         this.lastInferenceTime = 0;
+        this.inferenceFps = 0;
         this.lastFeatures = null;
+        this.lastDebugMetrics = {};
+        this.bodyShoulderBaseline = null;
         this.recording = null;
         this.resetGestureState();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -246,11 +269,16 @@ export class HandTracker {
                 ? this.recognizeCustomGesture(observation.features)
                 : observation.gesture;
             this.handleGesture(gesture);
-            this.emitStatus(true, gesture, this.recording ? 'Recording pose...' : null);
+            this.emitStatus(true, gesture, this.recording ? 'Recording pose...' : null, {
+                ...this.lastDebugMetrics,
+                fps: this.inferenceFps
+            });
         } else {
             this.lastFeatures = null;
             this.handleGesture(null);
-            this.emitStatus(false, null, this.recording ? 'Move into camera view' : null);
+            this.emitStatus(false, null, this.recording ? 'Move into camera view' : null, {
+                fps: this.inferenceFps
+            });
         }
         this.ctx.restore();
     }
@@ -282,7 +310,7 @@ export class HandTracker {
             const eyeState = this.getEyeState(recognitionLandmarks, blendshapes);
             return {
                 landmarks,
-                features: [eyeState.gaze, eyeState.blinkLeft, eyeState.blinkRight],
+                features: [eyeState.gaze, eyeState.gazeY, eyeState.blinkLeft, eyeState.blinkRight],
                 gesture: this.recognizeEyeGesture(eyeState)
             };
         }
@@ -320,6 +348,7 @@ export class HandTracker {
             middleBase.x - wrist.x,
             wrist.y - middleBase.y
         ) * 180 / Math.PI;
+        this.lastDebugMetrics = { handTilt };
         const indexTip = landmarks[8];
         const indexBase = landmarks[5];
         const indexExtended = indexTip.y < indexBase.y - this.indexExtendThreshold;
@@ -355,15 +384,35 @@ export class HandTracker {
             && Math.abs(leftWrist.y - leftShoulder.y) < 0.15;
         const rightArmExtended = rightWrist.x > rightShoulder.x + 0.12
             && Math.abs(rightWrist.y - rightShoulder.y) < 0.15;
-        const kneeAngle = Math.min(
-            this.jointAngle(landmarks[23], landmarks[25], landmarks[27]),
-            this.jointAngle(landmarks[24], landmarks[26], landmarks[28])
+        const legsVisible = [23, 24, 25, 26, 27, 28].every(index =>
+            landmarks[index].visibility === undefined || landmarks[index].visibility > 0.5
         );
+        const kneeAngle = legsVisible
+            ? Math.min(
+                this.jointAngle(landmarks[23], landmarks[25], landmarks[27]),
+                this.jointAngle(landmarks[24], landmarks[26], landmarks[28])
+            )
+            : Infinity;
+        const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+        if (this.bodyShoulderBaseline === null) this.bodyShoulderBaseline = shoulderY;
+        const shoulderDrop = shoulderY - this.bodyShoulderBaseline;
+        const kneeBent = kneeAngle < 135;
+        const shoulderDropped = shoulderDrop > 0.08;
+
+        if (!kneeBent && !shoulderDropped && !bothArmsRaised && !leftArmExtended && !rightArmExtended) {
+            this.bodyShoulderBaseline = this.bodyShoulderBaseline * 0.95 + shoulderY * 0.05;
+        }
+
+        this.lastDebugMetrics = {
+            kneeAngle: Number.isFinite(kneeAngle) ? kneeAngle : null,
+            shoulderDrop,
+            legsVisible
+        };
 
         if (bothArmsRaised) return 'rotate';
         if (leftArmExtended && !rightArmExtended) return 'left';
         if (rightArmExtended && !leftArmExtended) return 'right';
-        if (kneeAngle < 135) return 'down';
+        if (kneeBent || shoulderDropped) return 'down';
         return null;
     }
 
@@ -378,26 +427,42 @@ export class HandTracker {
         const gaze = iris.length
             ? (iris.reduce((sum, point) => sum + point.x, 0) / iris.length - minX) / (maxX - minX)
             : 0.5;
+        const upperEyeY = (landmarks[159].y + landmarks[386].y) / 2;
+        const lowerEyeY = (landmarks[145].y + landmarks[374].y) / 2;
+        const irisY = iris.length
+            ? iris.reduce((sum, point) => sum + point.y, 0) / iris.length
+            : (upperEyeY + lowerEyeY) / 2;
+        const gazeY = (irisY - upperEyeY) / (lowerEyeY - upperEyeY || 1);
         return {
             gaze,
+            gazeY,
             blinkLeft: score('eyeBlinkLeft'),
             blinkRight: score('eyeBlinkRight')
         };
     }
 
-    recognizeEyeGesture({ gaze, blinkLeft, blinkRight }) {
-        if (blinkLeft > 0.62 && blinkRight < 0.4) return 'rotate';
-        if (blinkRight > 0.62 && blinkLeft < 0.4) return 'down';
-        if (blinkLeft > 0.58 && blinkRight > 0.58) return null;
+    recognizeEyeGesture({ gaze, gazeY = 0.5, blinkLeft, blinkRight }) {
         const offset = gaze - this.eyeCalibration.gaze;
-        if (offset > this.dropThreshold) return 'right';
-        if (offset < -this.dropThreshold) return 'left';
+        const verticalOffset = gazeY - (this.eyeCalibration.gazeY ?? 0.5);
+        this.lastDebugMetrics = { gazeOffset: offset, verticalGazeOffset: verticalOffset };
+
+        if (this.eyeControlStyle === 'wink') {
+            if (blinkLeft > 0.62 && blinkRight < 0.4) return 'rotate';
+            if (blinkRight > 0.62 && blinkLeft < 0.4) return 'down';
+            if (blinkLeft > 0.58 && blinkRight > 0.58) return null;
+        } else {
+            if (blinkLeft > 0.58 && blinkRight > 0.58) return 'rotate';
+            if (verticalOffset < -this.gazeVerticalThreshold) return 'down';
+        }
+
+        if (offset > this.gazeThreshold) return 'right';
+        if (offset < -this.gazeThreshold) return 'left';
         return null;
     }
 
     calibrateEyes() {
         if (this.mode !== 'eyes' || !this.lastFeatures) return false;
-        this.eyeCalibration = { gaze: this.lastFeatures[0] };
+        this.eyeCalibration = { gaze: this.lastFeatures[0], gazeY: this.lastFeatures[1] };
         localStorage.setItem(EYE_CALIBRATION_KEY, JSON.stringify(this.eyeCalibration));
         return true;
     }
@@ -523,8 +588,8 @@ export class HandTracker {
         this.lastFireTime = 0;
     }
 
-    emitStatus(detected, gesture, message) {
-        this.statusCallback?.({ detected, gesture, message, mode: this.mode });
+    emitStatus(detected, gesture, message, metrics = {}) {
+        this.statusCallback?.({ detected, gesture, message, mode: this.mode, metrics });
     }
 
     onGesture(callback) {

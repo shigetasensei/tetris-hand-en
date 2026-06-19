@@ -47,6 +47,13 @@
                         </div>
                     </div>
                     <p id="mode-help" class="mode-help"></p>
+                    <div id="eye-control-settings" class="setting-item" hidden>
+                        <label for="eye-control-style">Eye action style</label>
+                        <select id="eye-control-style">
+                            <option value="accessible">No wink required</option>
+                            <option value="wink">Wink controls</option>
+                        </select>
+                    </div>
                     <div id="eye-calibration" class="setting-actions" hidden>
                         <button type="button" id="calibrate-eyes-btn" class="secondary-btn">Calibrate center gaze</button>
                         <span id="eye-calibration-status" class="inline-status" aria-live="polite"></span>
@@ -58,7 +65,7 @@
                             <select id="pose-command" aria-label="Command to register">
                                 <option value="left">Move left</option>
                                 <option value="right">Move right</option>
-                                <option value="down">Move down</option>
+                                <option value="down">Hard drop</option>
                                 <option value="rotate">Rotate</option>
                             </select>
                             <button type="button" id="record-pose-btn">Record pose</button>
@@ -69,6 +76,10 @@
                         </div>
                         <p id="registration-status">No custom poses registered.</p>
                     </div>
+                    <details class="debug-panel">
+                        <summary>Tracking debug</summary>
+                        <pre id="tracking-debug">Waiting for camera...</pre>
+                    </details>
                 </div>
             </div>
         </div>
