@@ -13,8 +13,8 @@ const MODEL_PATHS = {
     body: `${MODEL_ROOT}/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
     eyes: `${MODEL_ROOT}/face_landmarker/face_landmarker/float16/1/face_landmarker.task`
 };
-const TEMPLATE_STORAGE_KEY = 'tetris-tracking-templates-v1';
-const EYE_CALIBRATION_KEY = 'tetris-eye-calibration-v1';
+const TEMPLATE_STORAGE_KEY = 'tetris-tracking-templates-v2';
+const EYE_CALIBRATION_KEY = 'tetris-eye-calibration-v2';
 const COMMANDS = ['left', 'right', 'down', 'rotate'];
 
 export class HandTracker {
@@ -258,25 +258,28 @@ export class HandTracker {
     readObservation(result) {
         if (this.mode === 'hand' && result.landmarks?.length) {
             const landmarks = result.landmarks[0];
+            const recognitionLandmarks = this.mirrorLandmarks(landmarks);
             return {
                 landmarks,
-                features: this.normalizeLandmarks(landmarks, 0, 9, [...Array(21).keys()]),
-                gesture: this.recognizeHandGesture(landmarks)
+                features: this.normalizeLandmarks(recognitionLandmarks, 0, 9, [...Array(21).keys()]),
+                gesture: this.recognizeHandGesture(recognitionLandmarks)
             };
         }
         if (this.mode === 'body' && result.landmarks?.length) {
             const landmarks = result.landmarks[0];
+            const recognitionLandmarks = this.mirrorLandmarks(landmarks);
             const indices = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
             return {
                 landmarks,
-                features: this.normalizeBodyLandmarks(landmarks, indices),
-                gesture: this.recognizeBodyGesture(landmarks)
+                features: this.normalizeBodyLandmarks(recognitionLandmarks, indices),
+                gesture: this.recognizeBodyGesture(recognitionLandmarks)
             };
         }
         if (this.mode === 'eyes' && result.faceLandmarks?.length) {
             const landmarks = result.faceLandmarks[0];
+            const recognitionLandmarks = this.mirrorLandmarks(landmarks);
             const blendshapes = result.faceBlendshapes?.[0]?.categories || [];
-            const eyeState = this.getEyeState(landmarks, blendshapes);
+            const eyeState = this.getEyeState(recognitionLandmarks, blendshapes);
             return {
                 landmarks,
                 features: [eyeState.gaze, eyeState.blinkLeft, eyeState.blinkRight],
@@ -284,6 +287,10 @@ export class HandTracker {
             };
         }
         return null;
+    }
+
+    mirrorLandmarks(landmarks) {
+        return landmarks.map(landmark => ({ ...landmark, x: 1 - landmark.x }));
     }
 
     drawObservation(landmarks) {
@@ -318,8 +325,8 @@ export class HandTracker {
         const indexExtended = indexTip.y < indexBase.y - this.indexExtendThreshold;
 
         if (indexExtended && this.isOnlyIndexExtended(landmarks)) return 'rotate';
-        if (handTilt > this.tiltAngle) return 'left';
-        if (handTilt < -this.tiltAngle) return 'right';
+        if (handTilt > this.tiltAngle) return 'right';
+        if (handTilt < -this.tiltAngle) return 'left';
         if (wrist.y < middleBase.y - this.dropThreshold) return 'down';
         return null;
     }
@@ -344,9 +351,9 @@ export class HandTracker {
         const rightWrist = landmarks[16];
         const bothArmsRaised = leftWrist.y < leftShoulder.y - 0.08
             && rightWrist.y < rightShoulder.y - 0.08;
-        const leftArmExtended = leftWrist.x > leftShoulder.x + 0.12
+        const leftArmExtended = leftWrist.x < leftShoulder.x - 0.12
             && Math.abs(leftWrist.y - leftShoulder.y) < 0.15;
-        const rightArmExtended = rightWrist.x < rightShoulder.x - 0.12
+        const rightArmExtended = rightWrist.x > rightShoulder.x + 0.12
             && Math.abs(rightWrist.y - rightShoulder.y) < 0.15;
         const kneeAngle = Math.min(
             this.jointAngle(landmarks[23], landmarks[25], landmarks[27]),
@@ -383,8 +390,8 @@ export class HandTracker {
         if (blinkRight > 0.62 && blinkLeft < 0.4) return 'down';
         if (blinkLeft > 0.58 && blinkRight > 0.58) return null;
         const offset = gaze - this.eyeCalibration.gaze;
-        if (offset > this.dropThreshold) return 'left';
-        if (offset < -this.dropThreshold) return 'right';
+        if (offset > this.dropThreshold) return 'right';
+        if (offset < -this.dropThreshold) return 'left';
         return null;
     }
 

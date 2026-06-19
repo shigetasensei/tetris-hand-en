@@ -80,8 +80,8 @@ const handTilt = Math.atan2(
     wrist.y - middleBase.y
 ) * 180 / Math.PI;
 
-if (handTilt > this.tiltAngle) return 'left';
-if (handTilt < -this.tiltAngle) return 'right';
+if (handTilt > this.tiltAngle) return 'right';
+if (handTilt < -this.tiltAngle) return 'left';
 ```
 
 To make tilt recognition more sensitive, reduce the default `tiltAngle` in the `HandTracker` constructor. To require a larger movement, increase it.
@@ -208,7 +208,7 @@ Store a short sequence of normalized features and compare it with a recorded seq
 ## Common Pitfalls
 
 - `detectForVideo()` is synchronous and can block the UI. Keep the existing frame-rate limit unless processing is moved to a worker.
-- The preview canvas is mirrored. Validate left/right behavior using a real camera whenever changing `x` calculations.
+- The preview canvas is mirrored. `readObservation()` mirrors landmark `x` values for recognition while retaining raw landmarks for drawing; keep both paths in their respective coordinate systems.
 - Do not save raw camera frames for custom poses; the current template system only needs normalized numeric features.
 - Avoid firing rotation repeatedly. `handleGesture()` intentionally treats `rotate` as non-repeatable until the gesture returns to neutral.
 - When changing modes, close the old landmarker before creating the new one to avoid retaining model resources.
