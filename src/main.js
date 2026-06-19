@@ -158,6 +158,8 @@ class App {
                 this.executeCommand(keyMap[event.key]);
             }
         });
+
+        window.addEventListener('pagehide', () => this.handTracker.stop());
     }
 
     executeCommand(command) {
@@ -181,12 +183,15 @@ class App {
             this.tetrisGame.start();
             this.isPlaying = true;
             this.isPaused = false;
+            this.handTracker.setPaused(false);
             this.startBtn.textContent = 'Start';
             this.pauseBtn.textContent = 'Pause';
             this.pauseBtn.disabled = false;
             this.gameLoop();
         } catch (error) {
             console.error('Game start error:', error);
+            this.handTracker.stop();
+            this.trackerInitialized = false;
             this.startBtn.disabled = false;
             this.startBtn.textContent = 'Start';
             alert('Failed to initialize tracking. Allow camera access and check your network connection.');
@@ -198,8 +203,10 @@ class App {
         this.pauseBtn.textContent = this.isPaused ? 'Resume' : 'Pause';
         if (this.isPaused) {
             this.tetrisGame.pause();
+            this.handTracker.setPaused(true);
         } else {
             this.tetrisGame.resume();
+            this.handTracker.setPaused(false);
             this.gameLoop();
         }
     }
@@ -219,6 +226,8 @@ class App {
 
     gameOver() {
         this.isPlaying = false;
+        this.handTracker.stop();
+        this.trackerInitialized = false;
         this.startBtn.disabled = false;
         this.startBtn.textContent = 'Play Again';
         this.pauseBtn.disabled = true;

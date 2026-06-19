@@ -47,6 +47,8 @@ export class HandTracker {
         this.landmarker = null;
         this.stream = null;
         this.running = false;
+        this.paused = false;
+        this.animationFrameId = null;
         this.lastVideoTime = -1;
         this.lastInferenceTime = 0;
         this.lastFeatures = null;
@@ -80,7 +82,8 @@ export class HandTracker {
 
         if (!this.running) {
             this.running = true;
-            requestAnimationFrame(timestamp => this.processFrame(timestamp));
+            this.paused = false;
+            this.animationFrameId = requestAnimationFrame(timestamp => this.processFrame(timestamp));
         }
     }
 
@@ -142,7 +145,7 @@ export class HandTracker {
         this.recording = null;
         this.resetGestureState();
         this.emitStatus(false, null, `Loading ${mode} model...`);
-        if (this.vision) await this.createLandmarker();
+        if (this.running && this.stream) await this.createLandmarker();
     }
 
     setProfile(profile) {
@@ -153,8 +156,9 @@ export class HandTracker {
 
     processFrame(timestamp) {
         if (!this.running) return;
-        requestAnimationFrame(nextTimestamp => this.processFrame(nextTimestamp));
+        this.animationFrameId = requestAnimationFrame(nextTimestamp => this.processFrame(nextTimestamp));
 
+        if (this.paused) return;
         if (!this.landmarker || this.video.readyState < 2) return;
         if (timestamp - this.lastInferenceTime < 50) return;
         if (this.video.currentTime === this.lastVideoTime) return;
@@ -169,6 +173,58 @@ export class HandTracker {
             console.error('Tracking error:', error);
             this.emitStatus(false, null, 'Tracking error');
         }
+    }
+
+    setPaused(paused) {
+        this.paused = Boolean(paused);
+        if (this.paused) {
+            this.resetGestureState();
+            this.emitStatus(false, null, 'Tracking paused');
+        } else {
+            this.lastVideoTime = -1;
+            this.lastInferenceTime = 0;
+        }
+    }
+
+    stop() {
+        this.running = false;
+        this.paused = false;
+
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+
+        if (this.landmarker) {
+            const landmarker = this.landmarker;
+            this.landmarker = null;
+            try {
+                landmarker.close();
+            } catch (error) {
+                console.warn('Failed to close tracking model cleanly.', error);
+            }
+        }
+
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => {
+                try {
+                    track.stop();
+                } catch (error) {
+                    console.warn('Failed to stop a camera track cleanly.', error);
+                }
+            });
+            this.stream = null;
+        }
+
+        this.video.pause();
+        this.video.srcObject = null;
+        this.lastVideoTime = -1;
+        this.lastInferenceTime = 0;
+        this.lastFeatures = null;
+        this.recording = null;
+        this.resetGestureState();
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.emitStatus(false, null, 'Camera stopped');
     }
 
     onResults(result) {
