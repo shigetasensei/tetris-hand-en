@@ -1,460 +1,222 @@
-# 🎮 Gesture Customization Guide
+# Gesture Customization Guide
 
-This guide explains how hand tracking (gesture) recognition works with MediaPipe, and how to customize it, in a way that's easy to follow even if you're just getting started.
+This guide describes the current MediaPipe Tasks Vision implementation and the two supported ways to customize controls:
 
-## 📚 Table of Contents
+1. Record poses through the application's **Custom poses** interface.
+2. Change or extend the recognition code in `src/hand/tracker.js`.
 
-1. [Hand Tracking Basics](#1-hand-tracking-basics)
-2. [Understanding the Code Structure](#2-understanding-the-code-structure)
-3. [How to Customize Gestures](#3-how-to-customize-gestures)
-4. [Practice Problems](#4-practice-problems)
-5. [Advanced Customization](#5-advanced-customization)
+## Tracking Pipeline
 
-## 1. Hand Tracking Basics
+The important files are:
 
-### MediaPipe's 21 Landmarks
-
-MediaPipe represents a hand using 21 points (landmarks):
-
-```
-    8   12  16  20  ← Fingertips (Tip)
-    |   |   |   |
-    7   11  15  19
-    |   |   |   |
-    6   10  14  18
-    |   |   |   |
-4   5   9   13  17  ← Finger bases (MCP)
- \ | / | / | /
-  \|/ |/ |/
-   3  2  1
-    \ | /
-     \|/
-      0 ← Wrist
+```text
+index.html                 Tracking settings and pose-recording controls
+src/main.js                Maps recognized commands to game actions
+src/hand/tracker.js        Camera, MediaPipe models, recognition, templates
+src/game/tetris.js         Tetris state and movement
 ```
 
-What each number means:
-- 0: Wrist
-- 1-4: Thumb
-- 5-8: Index finger
-- 9-12: Middle finger
-- 13-16: Ring finger
-- 17-20: Pinky
+The runtime flow is:
 
-### Coordinate System
-
-Each landmark has three values:
-- `x`: Left-right position (0.0–1.0)
-- `y`: Up-down position (0.0–1.0)
-- `z`: Depth (distance from the camera)
-
-## 2. Understanding the Code Structure
-
-### The Important File
-
-```
-src/hand/tracker.js  ← This is where gestures are recognized
+```text
+webcam frame
+  → HandLandmarker / PoseLandmarker / FaceLandmarker
+  → readObservation(result)
+  → standard recognizer or custom-template matcher
+  → handleGesture(command)
+  → App.executeCommand(command)
+  → TetrisGame
 ```
 
-### How Gesture Recognition Works
+The project uses `@mediapipe/tasks-vision`. It does not use the older MediaPipe Solutions packages such as `@mediapipe/hands` or `@mediapipe/camera_utils`.
+
+## MediaPipe Results
+
+### Hand mode
+
+`HandLandmarker` produces 21 landmarks. Useful indices include:
+
+```text
+0     wrist
+4     thumb tip
+5/8   index base/tip
+9/12  middle base/tip
+13/16 ring base/tip
+17/20 pinky base/tip
+```
+
+Each landmark has normalized `x`, `y`, and `z` coordinates. `x` increases across the image and `y` increases downward.
+
+The current result access is:
 
 ```javascript
-// The key part of tracker.js
+const result = this.landmarker.detectForVideo(this.video, timestamp);
 
-recognizeGesture(landmarks) {
-    // 1. Get the landmarks you need
-    const wrist = landmarks[0];        // Wrist
-    const middleBase = landmarks[9];   // Base of the middle finger
-    
-    // 2. Do some calculations and checks
-    const angle = /* calculate the angle */;
-    
-    // 3. Decide on a gesture and return it
-    if (angle < -30) {
-        return 'right';
-    }
-    // ...
+if (result.landmarks?.length) {
+    const landmarks = result.landmarks[0];
+    const gesture = this.recognizeHandGesture(landmarks);
 }
 ```
 
-## 3. How to Customize Gestures
+### Full-body mode
 
-### 🎯 Basic Customization Examples
+`PoseLandmarker` produces 33 landmarks. The standard controls use shoulders (`11`, `12`), wrists (`15`, `16`), hips (`23`, `24`), knees (`25`, `26`), and ankles (`27`, `28`).
 
-#### Example 1: Change the sensitivity of the hand tilt
+### Eye mode
 
-The current code (around line 90 of tracker.js):
+`FaceLandmarker` provides face and iris landmarks. With `outputFaceBlendshapes: true`, it also provides `eyeBlinkLeft` and `eyeBlinkRight` scores. The eye recognizer combines those scores with a calibrated horizontal gaze value.
+
+## Standard Recognition
+
+### Hand tilt
+
+The current hand recognizer is `recognizeHandGesture(landmarks)`. Tilt is measured relative to the vertical wrist-to-middle-finger direction:
+
 ```javascript
-// Calculate the hand's tilt
-const angle = Math.atan2(middleBase.y - wrist.y, middleBase.x - wrist.x) * 180 / Math.PI;
+const wrist = landmarks[0];
+const middleBase = landmarks[9];
+const handTilt = Math.atan2(
+    middleBase.x - wrist.x,
+    wrist.y - middleBase.y
+) * 180 / Math.PI;
 
-// Decide on a gesture
-if (angle < -30) {
-    return 'right';
-} else if (angle > 30) {
-    return 'left';
-}
+if (handTilt > this.tiltAngle) return 'left';
+if (handTilt < -this.tiltAngle) return 'right';
 ```
 
-**Customization example**: make it more sensitive
+To make tilt recognition more sensitive, reduce the default `tiltAngle` in the `HandTracker` constructor. To require a larger movement, increase it.
+
+### Full-body poses
+
+`recognizeBodyGesture(landmarks)` implements these defaults:
+
+- both wrists above their shoulders → `rotate`
+- left arm held sideways → `left`
+- right arm held sideways → `right`
+- knee angle below the squat threshold → `down`
+
+### Eye controls
+
+`recognizeEyeGesture(eyeState)` implements these defaults:
+
+- horizontal gaze offset → `left` or `right`
+- left-eye wink → `rotate`
+- right-eye wink → `down`
+
+Center calibration stores the neutral gaze value in `localStorage`.
+
+## Record Custom Poses Without Editing Code
+
+This is the recommended customization path for students.
+
+1. Start the game so the camera and selected model are active.
+2. Select **Custom poses** under **Control profile**.
+3. Choose `Move left`, `Move right`, `Move down`, or `Rotate`.
+4. Press **Record pose**.
+5. Hold a stable pose until the progress bar finishes.
+6. Repeat for the other commands.
+
+The tracker collects 30 feature samples, averages them, and stores the template under the active mode. Hand, body, and eye templates are separate.
+
+Features are normalized before storage:
+
+- hand landmarks use the wrist as origin and palm length as scale
+- body landmarks use the hip midpoint as origin and shoulder width as scale
+- eye templates use gaze and left/right blink scores
+
+`recognizeCustomGesture(features)` selects the nearest registered template when its root-mean-square distance is below `customThreshold`.
+
+Use **Reset** to remove templates for the selected mode.
+
+## Add a New Code-Based Gesture
+
+All recognized commands must eventually map to a game action. The built-in commands are `left`, `right`, `down`, and `rotate`.
+
+For example, to recognize a fist in hand mode:
+
 ```javascript
-// Change the angle to 20 degrees (reacts to a smaller tilt)
-if (angle < -20) {    // -30 → -20
-    return 'right';
-} else if (angle > 20) {  // 30 → 20
-    return 'left';
-}
-```
-
-#### Example 2: Add a new gesture
-
-**Add a feature that pauses the game with a "fist"**
-
-1. First, add a function to tracker.js that checks whether the fingers are closed:
-
-```javascript
-// Check whether all fingers are closed
 isFist(landmarks) {
-    // Check the distance between each fingertip and its base
     const fingers = [
-        { tip: 4, base: 2 },   // Thumb
-        { tip: 8, base: 5 },   // Index finger
-        { tip: 12, base: 9 },  // Middle finger
-        { tip: 16, base: 13 }, // Ring finger
-        { tip: 20, base: 17 }  // Pinky
+        { tip: 8, base: 5 },
+        { tip: 12, base: 9 },
+        { tip: 16, base: 13 },
+        { tip: 20, base: 17 }
     ];
-    
-    for (let finger of fingers) {
-        const tipY = landmarks[finger.tip].y;
-        const baseY = landmarks[finger.base].y;
-        
-        // If the fingertip is above the base (the finger is open)
-        if (tipY < baseY - 0.05) {
-            return false;
-        }
-    }
-    
-    return true;  // All fingers are closed
+
+    return fingers.every(({ tip, base }) =>
+        landmarks[tip].y >= landmarks[base].y - this.fingerExtendThreshold
+    );
 }
 ```
 
-2. Add it to the recognizeGesture function:
+Call it near the start of `recognizeHandGesture`:
 
 ```javascript
-recognizeGesture(landmarks) {
-    // Existing code...
-    
-    // Add the fist check
-    if (this.isFist(landmarks)) {
-        return 'pause';
-    }
-    
-    // Existing checks...
+recognizeHandGesture(landmarks) {
+    if (this.isFist(landmarks)) return 'down';
+
+    // Existing recognition follows.
 }
 ```
 
-3. Handle the pause action in main.js:
+Reusing an existing command requires no change in `src/main.js`. If you introduce a new command name, add it to both places:
+
+1. The `COMMANDS` array in `src/hand/tracker.js` if it can be recorded.
+2. The `actions` map in `App.executeCommand()` in `src/main.js`.
+
+## Add Debug Output
+
+Use the existing status callback instead of querying old MediaPipe result fields:
 
 ```javascript
-switch(gesture) {
-    // Existing cases...
-    case 'pause':
-        this.togglePause();
-        break;
-}
+this.handTracker.onStatus(status => {
+    console.log({
+        mode: status.mode,
+        detected: status.detected,
+        gesture: status.gesture,
+        message: status.message
+    });
+});
 ```
 
-### 🎨 Adding Visual Feedback
-
-Show the hand's state on screen to make debugging easier:
+For a hand-tilt value, temporarily log it inside `recognizeHandGesture` after calculating `handTilt`:
 
 ```javascript
-// Add this inside the onResults function in tracker.js
-onResults(results) {
-    // Existing code...
-    
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0];
-        
-        // Display debug info
-        const wrist = landmarks[0];
-        const middleBase = landmarks[9];
-        const angle = Math.atan2(middleBase.y - wrist.y, middleBase.x - wrist.x) * 180 / Math.PI;
-        
-        // Show the angle on screen (you'll need to add a new element)
-        console.log(`Hand angle: ${angle.toFixed(1)} degrees`);
-    }
-}
+console.log('Hand tilt:', handTilt.toFixed(1));
 ```
 
-## 4. Practice Problems
+Remove per-frame logs after debugging because they can produce a large amount of console output.
 
-### 🔰 Beginner Problems
+## Practice Tasks
 
-#### Problem 1: Make a peace sign (✌️) trigger a special action
+### Beginner: Peace sign
 
-Hints:
-- Only the index finger (8) and middle finger (12) are extended
-- The other fingers are bent
+Create `isPeaceSign(landmarks)` by checking that the index and middle fingertips are above their bases while the ring and pinky fingers are not. Call it from `recognizeHandGesture` and map it to an existing command.
 
-<details>
-<summary>💡 See an example solution</summary>
+### Intermediate: Tune a body pose
 
-```javascript
-isPeaceSign(landmarks) {
-    // Is the index finger extended?
-    const indexExtended = landmarks[8].y < landmarks[5].y - 0.1;
-    
-    // Is the middle finger extended?
-    const middleExtended = landmarks[12].y < landmarks[9].y - 0.1;
-    
-    // Is the ring finger bent?
-    const ringBent = landmarks[16].y > landmarks[13].y - 0.05;
-    
-    // Is the pinky bent?
-    const pinkyBent = landmarks[20].y > landmarks[17].y - 0.05;
-    
-    return indexExtended && middleExtended && ringBent && pinkyBent;
-}
-```
+In `recognizeBodyGesture`, change the sideways-arm tolerance and test different distances from the camera. Keep the conditions mutually exclusive so extending both arms does not produce alternating left/right commands.
 
-</details>
+### Intermediate: Add an eye control profile
 
-#### Problem 2: Build a sensitivity adjustment feature
+Add a profile that does not require winking. For example, distinguish a short two-eye blink from a longer eye closure. Keep timing state separate from the landmark calculation.
 
-Create a settings file so you can change the angle threshold.
+### Advanced: Dynamic gesture
 
-<details>
-<summary>💡 See an example solution</summary>
+Store a short sequence of normalized features and compare it with a recorded sequence. Static template averaging cannot distinguish motion direction, so a dynamic gesture needs time-series matching.
 
-1. Add a variable to hold the settings:
+## Common Pitfalls
 
-```javascript
-// Add this near the top of tracker.js
-class HandTracker {
-    constructor(videoElement, canvasElement) {
-        // Existing code...
-        
-        // Setting values
-        this.settings = {
-            leftAngle: 30,
-            rightAngle: -30,
-            gestureThreshold: 300
-        };
-    }
-}
-```
+- `detectForVideo()` is synchronous and can block the UI. Keep the existing frame-rate limit unless processing is moved to a worker.
+- The preview canvas is mirrored. Validate left/right behavior using a real camera whenever changing `x` calculations.
+- Do not save raw camera frames for custom poses; the current template system only needs normalized numeric features.
+- Avoid firing rotation repeatedly. `handleGesture()` intentionally treats `rotate` as non-repeatable until the gesture returns to neutral.
+- When changing modes, close the old landmarker before creating the new one to avoid retaining model resources.
 
-2. Change the code to use the settings:
+## References
 
-```javascript
-recognizeGesture(landmarks) {
-    // Existing code...
-    
-    if (angle < this.settings.rightAngle) {
-        return 'right';
-    } else if (angle > this.settings.leftAngle) {
-        return 'left';
-    }
-}
-```
-
-</details>
-
-### 🏃 Intermediate Problems
-
-#### Problem 3: Change the speed based on how many fingers are up
-
-Use the number of open fingers to control the drop speed.
-
-<details>
-<summary>💡 See an example solution</summary>
-
-```javascript
-countOpenFingers(landmarks) {
-    let count = 0;
-    const fingers = [
-        { tip: 4, base: 2 },   // Thumb
-        { tip: 8, base: 5 },   // Index finger
-        { tip: 12, base: 9 },  // Middle finger
-        { tip: 16, base: 13 }, // Ring finger
-        { tip: 20, base: 17 }  // Pinky
-    ];
-    
-    for (let i = 0; i < fingers.length; i++) {
-        const finger = fingers[i];
-        
-        if (i === 0) { // For the thumb, check horizontally
-            if (Math.abs(landmarks[finger.tip].x - landmarks[finger.base].x) > 0.1) {
-                count++;
-            }
-        } else { // For the other fingers, check vertically
-            if (landmarks[finger.tip].y < landmarks[finger.base].y - 0.05) {
-                count++;
-            }
-        }
-    }
-    
-    return count;
-}
-
-// Add to recognizeGesture
-const openFingers = this.countOpenFingers(landmarks);
-if (openFingers === 1) {
-    return 'slow_drop';
-} else if (openFingers === 5) {
-    return 'fast_drop';
-}
-```
-
-</details>
-
-### 🚀 Advanced Problems
-
-#### Problem 4: Combining gestures
-
-Implement a feature that rotates the piece when you "raise your index finger and rotate your hand."
-
-Hints:
-- Remember the hand's position from the previous frame
-- Track the movement of the hand's center point
-- Detect a circular motion
-
-<details>
-<summary>💡 See an example solution</summary>
-
-```javascript
-class HandTracker {
-    constructor(videoElement, canvasElement) {
-        // Existing code...
-        
-        // Hand position history
-        this.handHistory = [];
-        this.maxHistoryLength = 10;
-    }
-    
-    detectCircularMotion(landmarks) {
-        // Calculate the center of the hand
-        const palmCenter = {
-            x: (landmarks[0].x + landmarks[5].x + landmarks[17].x) / 3,
-            y: (landmarks[0].y + landmarks[5].y + landmarks[17].y) / 3
-        };
-        
-        // Add it to the history
-        this.handHistory.push(palmCenter);
-        if (this.handHistory.length > this.maxHistoryLength) {
-            this.handHistory.shift();
-        }
-        
-        // If we don't have enough history yet
-        if (this.handHistory.length < this.maxHistoryLength) {
-            return false;
-        }
-        
-        // Calculate the total distance traveled
-        let totalDistance = 0;
-        for (let i = 1; i < this.handHistory.length; i++) {
-            const dx = this.handHistory[i].x - this.handHistory[i-1].x;
-            const dy = this.handHistory[i].y - this.handHistory[i-1].y;
-            totalDistance += Math.sqrt(dx * dx + dy * dy);
-        }
-        
-        // Distance between the start and end points
-        const startEnd = Math.sqrt(
-            Math.pow(this.handHistory[0].x - palmCenter.x, 2) +
-            Math.pow(this.handHistory[0].y - palmCenter.y, 2)
-        );
-        
-        // Check whether the hand is drawing a circle
-        return totalDistance > 0.3 && startEnd < 0.1;
-    }
-}
-```
-
-</details>
-
-## 5. Advanced Customization
-
-### 🎯 Custom Gestures with Machine Learning
-
-If you want to recognize more complex gestures, you can build your own classifier using TensorFlow.js.
-
-```javascript
-// Example of a future extension
-class CustomGestureRecognizer {
-    async loadModel() {
-        this.model = await tf.loadLayersModel('/models/custom-gestures/model.json');
-    }
-    
-    async predict(landmarks) {
-        // Convert the landmarks into an array
-        const input = landmarks.flatMap(l => [l.x, l.y, l.z]);
-        const prediction = await this.model.predict(tf.tensor2d([input]));
-        return prediction;
-    }
-}
-```
-
-### 🎨 Building a Debug Tool
-
-To make development easier, add a debug mode:
-
-```javascript
-// Add this to tracker.js
-enableDebugMode() {
-    this.debugMode = true;
-    
-    // Create the debug panel
-    const debugPanel = document.createElement('div');
-    debugPanel.id = 'debug-panel';
-    debugPanel.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: rgba(0,0,0,0.8);
-        color: white;
-        padding: 10px;
-        font-family: monospace;
-    `;
-    document.body.appendChild(debugPanel);
-}
-
-updateDebugInfo(landmarks) {
-    if (!this.debugMode) return;
-    
-    const panel = document.getElementById('debug-panel');
-    const angle = this.calculateAngle(landmarks);
-    const gesture = this.recognizeGesture(landmarks);
-    
-    panel.innerHTML = `
-        <h3>Debug Info</h3>
-        <p>Angle: ${angle.toFixed(1)}°</p>
-        <p>Gesture: ${gesture || 'none'}</p>
-        <p>FPS: ${this.fps}</p>
-    `;
-}
-```
-
-## 🎓 Summary
-
-What you learned in this guide:
-1. MediaPipe's landmark system
-2. The basics of how gesture recognition works
-3. How to create custom gestures
-4. How to debug and test
-
-### Next Steps
-
-- Try implementing more complex gestures
-- Add controls that use two hands
-- Build a feature that learns gestures
-- Create a feature for sharing gestures with friends
-
-## 📚 Reference Links
-
-- [MediaPipe Official Documentation](https://google.github.io/mediapipe/solutions/hands.html)
-- [JavaScript MDN Web Docs](https://developer.mozilla.org/ja/docs/Web/JavaScript)
-- [TensorFlow.js](https://www.tensorflow.org/js)
-
----
-
-💡 **Tip**: Whenever something isn't clear, use console logs (`console.log()`) to check values as you go!
+- [MediaPipe Tasks Vision for Web](https://ai.google.dev/edge/mediapipe/solutions/vision)
+- [Hand Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/web_js)
+- [Pose Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
+- [Face Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js)
+- [MDN JavaScript Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide)

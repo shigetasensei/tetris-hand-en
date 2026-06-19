@@ -30,7 +30,7 @@ In this file, we've prepared a set of exercises so you can learn programming by 
 - `index.html`: Defines the screen structure of the game (HTML)
 - `main.js`: Manages the whole app and connects the game with the camera
 - `tetris.js`: The game logic for Tetris
-- `tracker.js`: The processing that recognizes hand movements
+- `tracker.js`: Camera processing and hand, body, eye, and custom-pose recognition
 
 </details>
 
@@ -38,22 +38,22 @@ In this file, we've prepared a set of exercises so you can learn programming by 
 
 **Goal**: Learn the basics of debugging
 
-Add the following to the `recognizeGesture` function in `src/hand/tracker.js`:
+Add the following logs inside `recognizeHandGesture` in `src/hand/tracker.js`, after `wrist` and `middleBase` are defined:
 
 ```javascript
-recognizeGesture(landmarks) {
+recognizeHandGesture(landmarks) {
     const wrist = landmarks[0];
     const middleBase = landmarks[9];
-    
+
     // Add this here
     console.log('Wrist position:', wrist);
     console.log('Base of the middle finger:', middleBase);
-    
+
     // The existing code below...
 }
 ```
 
-Check the console in your browser's developer tools (F12).
+Choose **Hand** mode, start the camera, and check the console in your browser's developer tools. Remove the logs afterward because this function runs for every processed frame.
 
 ---
 
@@ -65,7 +65,7 @@ Check the console in your browser's developer tools (F12).
 
 **Task**: Change the colors of the Tetris blocks to your favorite colors
 
-Current code (around line 30):
+Find the `this.colors` array in the `TetrisGame` constructor:
 ```javascript
 this.colors = [
     '#000000', // 0: empty
@@ -87,7 +87,7 @@ this.colors = [
 
 **Task**: Change the game's starting speed
 
-Current code (around line 17):
+Find `this.dropInterval` in the `TetrisGame` constructor:
 ```javascript
 this.dropInterval = 1000; // milliseconds
 ```
@@ -103,7 +103,7 @@ this.dropInterval = 1000; // milliseconds
 
 **Task**: Double the score you get when you clear lines
 
-Current code (inside the `checkLines` function, around line 180):
+Find the score calculation inside the `checkLines()` method:
 ```javascript
 this.score += linesCleared * 100 * this.level;
 ```

@@ -1,338 +1,201 @@
 # Motion Tracking Tetris
 
-A web app that lets you play Tetris using hand gestures, full-body poses, or eye movements, powered by MediaPipe.
+A browser-based Tetris game controlled with hand gestures, full-body poses, eye movements, or poses you record yourself. Tracking runs in the browser with the MediaPipe Tasks Vision API.
 
-## 📚 Learning Documents
+## Controls
 
-- 🎮 **[Gesture Customization Guide](./GESTURE_CUSTOMIZATION_GUIDE.md)** - How gestures work and how to customize them
-- 🎯 **[Programming Exercises](./PROGRAMMING_EXERCISES.md)** - Practice problems from beginner to advanced
+Choose a tracking mode and control profile in **Tracking Settings**.
 
-## Demo
+| Command | Hand | Full body | Eyes only |
+| --- | --- | --- | --- |
+| Move left | Tilt the hand left | Hold the left arm sideways | Look left |
+| Move right | Tilt the hand right | Hold the right arm sideways | Look right |
+| Rotate | Raise only the index finger | Raise both hands | Wink the left eye |
+| Move down | Point the hand downward | Squat | Wink the right eye |
 
-Choose a tracking mode in the settings panel:
+The down command currently moves the piece by one row; it is a soft drop, not an instant hard drop.
 
-- **Hand**: tilt to move, point one index finger to rotate, or point downward to drop
-- **Full body**: hold one arm out sideways to move in that direction, raise both hands to rotate, or bend your knees to drop
-- **Eyes only**: look to the side to move, wink the left eye to rotate, or wink the right eye to drop
+For **Custom poses**, select a command, press **Record pose**, and hold the pose until recording finishes. Templates are stored in your browser's `localStorage`; camera images are not saved. In eye mode, look at the center of the screen and press **Calibrate center gaze** before playing.
 
-Choose **Custom poses** to record a separate pose for each command. Templates are saved only in your browser. Eye mode should be calibrated while looking at the center of the screen.
+Keyboard controls are also available:
 
-## Detailed Setup with GitHub Codespaces
+- Arrow Left / Arrow Right: move
+- Arrow Down: soft drop
+- Arrow Up / Space: rotate
 
-### 1. Launch Codespaces
+## Quick Start
 
-#### Starting from a GitHub repository
-1. Open this repository on GitHub
-2. Click the green "Code" button
-3. Select the "Codespaces" tab
-4. Click "Create codespace on main"
-5. Wait for Codespaces to launch in a new tab (the first time takes 2-3 minutes)
+Requirements:
 
-#### Starting as a brand-new project
-1. Log in to GitHub.com
-2. Click the "+" icon in the top right and choose "New codespace"
-3. Pick the "Blank" template and launch it
+- Node.js and npm
+- A webcam
+- A current Chrome, Edge, or another browser with WebAssembly and camera support
+- An internet connection on first use to download the MediaPipe WASM runtime and model files
 
-### 2. Set Up the Project
-
-Once Codespaces has launched, run these commands one by one in the terminal at the bottom:
+Clone and run the project:
 
 ```bash
-# 1. Create the project folder if you don't have one (new projects only)
-mkdir tetris-hand
-cd tetris-hand
-
-# 2. Copy this repository's files (skip this if you already have the files)
-# If the files are already there, skip this step
-git clone https://github.com/itoksk/tetris-hand.git temp_clone
-cp -r temp_clone/* .
-cp -r temp_clone/.* . 2>/dev/null || true
-rm -rf temp_clone
-
-# 3. Clean up before installing dependencies (recommended)
-rm -rf node_modules package-lock.json
-npm cache clean --force
-
-# 4. Install dependencies
+git clone https://github.com/shigetasensei/tetris-hand-en.git
+cd tetris-hand-en
 npm install
-
-# 5. Start the dev server
 npm run dev
-
-# If npm run dev gives you an error, run this instead
-npx vite --host 0.0.0.0
 ```
 
-### 3. Open the Application
+Open the URL printed by Vite, usually `http://localhost:5173`, then allow camera access.
 
-#### Check port forwarding
-1. Click the "PORTS" tab at the bottom of the Codespaces window
-2. Wait for port "5173" (Vite's default) to appear
-3. If the port doesn't show up, check the URL printed in the terminal
-
-#### Open the app in your browser
-1. Click the globe icon (🌐) on the "5173" row in the PORTS tab
-2. The app opens in a new tab
-3. Or copy the URL from the "Forwarded Address" column and open it in a new tab
-
-### 4. Set Up the Camera
-
-1. When the app opens in your browser, a dialog will ask for camera access
-2. Click "Allow"
-3. The camera starts up and you'll see your video feed on the right side of the screen
-
-### 5. Start the Game
-
-1. Click the "Start Game" button
-2. Show your hand to the camera and use these gestures to play:
-   - Tilt your hand left → the piece moves left
-   - Tilt your hand right → the piece moves right
-   - Point your hand down → the piece hard drops
-   - Raise your index finger → the piece rotates
-
-## Quick Start (First-Time Setup)
-
-Copy and paste these commands into the Codespaces terminal and run them:
+To create a production build:
 
 ```bash
-# Start from a clean environment
-rm -rf node_modules package-lock.json
-npm cache clean --force
-
-# Initialize and install packages
-npm init -y
-npm install --save-dev vite
-npm install @mediapipe/hands @mediapipe/camera_utils @mediapipe/drawing_utils
-
-# Set up the scripts
-npm pkg set scripts.dev="vite"
-npm pkg set scripts.build="vite build"
-npm pkg set scripts.preview="vite preview"
-
-# Start the dev server
-npm run dev
-
-# If you get an error
-npx vite --host 0.0.0.0
+npm run build
+npm run preview
 ```
 
-## How to Save to Your Own GitHub Repository
+Do not install `@mediapipe/hands`, `@mediapipe/camera_utils`, or `@mediapipe/drawing_utils`. This project uses `@mediapipe/tasks-vision`, which is installed from `package.json` by `npm install`.
 
-After you've customized the program, here's how to save it to your own GitHub account:
+## GitHub Codespaces
 
-### 1. Create a New Repository on GitHub
-1. Log in to [GitHub](https://github.com)
-2. Click the "+" icon in the top right → "New repository"
-3. Settings:
-   - Repository name: `my-tetris-hand` (any name you like is fine)
-   - Description: something like "A Tetris game you control with hand gestures"
-   - Choose Public or Private
-   - **Important**: **uncheck** "Add a README file"
-4. Click "Create repository"
+1. Open this repository on GitHub.
+2. Select **Code → Codespaces → Create codespace on main**.
+3. In the terminal, run:
 
-### 2. Run These Commands in Codespaces
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-```bash
-# Initialize as a Git repository (if you haven't already)
-git init
+4. Open port `5173` from the **PORTS** panel.
+5. Allow camera access in the browser.
 
-# Stage all the files
-git add .
+Codespaces serves forwarded ports over HTTPS, which satisfies browser camera security requirements.
 
-# First commit
-git commit -m "Create a Tetris game controlled with hand gestures"
+## How It Works
 
-# Connect to your own repository (replace YOUR_USERNAME with your GitHub username)
-git remote add origin https://github.com/YOUR_USERNAME/my-tetris-hand.git
+The application uses three MediaPipe Tasks Vision landmarkers:
 
-# Set the main branch
-git branch -M main
+- `HandLandmarker`: 21 landmarks for one hand
+- `PoseLandmarker`: 33 landmarks for one body
+- `FaceLandmarker`: face and iris landmarks plus eye-blink blendshapes
 
-# Push to GitHub
-git push -u origin main
+The selected landmarker processes webcam frames. `src/hand/tracker.js` converts the result into one of four commands: `left`, `right`, `down`, or `rotate`. `src/main.js` maps those commands to the Tetris game in `src/game/tetris.js`.
+
+The current API initialization looks like this:
+
+```javascript
+import {
+    FilesetResolver,
+    HandLandmarker
+} from '@mediapipe/tasks-vision';
+
+const WASM_ROOT = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
+const MODEL_PATH = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
+const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+        modelAssetPath: MODEL_PATH,
+        delegate: 'GPU'
+    },
+    runningMode: 'VIDEO',
+    numHands: 1,
+    minHandDetectionConfidence: 0.5,
+    minHandPresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5
+});
+
+const result = handLandmarker.detectForVideo(video, performance.now());
+const landmarks = result.landmarks[0];
 ```
 
-### 3. Saving Future Changes
-
-```bash
-# Check which files you changed
-git status
-
-# Stage your changes
-git add .
-
-# Commit (write a message describing what you changed)
-git commit -m "Adjust gesture sensitivity"
-
-# Push to GitHub
-git push
-```
-
-### Common Errors and Fixes
-
-**If you get an authentication error**
-```bash
-# Set your GitHub username and email
-git config --global user.name "Your GitHub username"
-git config --global user.email "Your email address"
-```
-
-**If the remote repository already exists**
-```bash
-# Check the current remote settings
-git remote -v
-
-# Remove the existing remote and set it again
-git remote remove origin
-git remote add origin https://github.com/YOUR_USERNAME/my-tetris-hand.git
-```
+The implementation falls back to the CPU delegate if GPU initialization fails.
 
 ## Project Structure
 
-```
-tetris-hand/
-├── README.md          # This file
-├── index.html         # Main HTML
-├── package.json       # npm settings
+```text
+tetris-hand-en/
+├── index.html
+├── package.json
+├── package-lock.json
+├── README.md
+├── GESTURE_CUSTOMIZATION_GUIDE.md
+├── PROGRAMMING_EXERCISES.md
 ├── src/
-│   ├── main.js        # Entry point
+│   ├── main.js
 │   ├── game/
-│   │   └── tetris.js  # Tetris game logic
+│   │   └── tetris.js
 │   └── hand/
-│       └── tracker.js # Hand tracking
+│       └── tracker.js
 └── styles/
-    └── main.css       # Stylesheet
+    └── main.css
 ```
 
-## About MediaPipe Hands
+## Learning Documents
 
-### What is MediaPipe Hands?
-
-MediaPipe Hands is a **hand-shape recognition technology** developed by Google. From the image of a hand captured by a camera, it can detect the position of the hand and the locations of the finger joints in real time.
-
-#### To put it simply...
-- Have you ever used the feature on your phone's camera that adds effects to your face?
-- MediaPipe Hands works the same way, but it recognizes your "hand" and tracks its movements
-- It represents the shape of your hand using **21 points** (landmarks)
-
-### How Does It Recognize Hands?
-
-#### 1. Using machine learning
-MediaPipe Hands uses a technology called **deep learning**. This is a computer program that imitates how the human brain works.
-
-- You show it lots of hand images and teach it "this is a hand"
-- The computer automatically learns the features of a hand
-- When you show it a new image, it uses what it learned to find the hand
-
-#### 2. How the processing works
-1. **Hand detection**: find where the hand is in the image
-2. **Landmark detection**: pinpoint the 21 key points of the hand (such as the finger joints)
-3. **Tracking**: keep following the hand in the next frame
-
-### Implementation in JavaScript
-
-This project uses the JavaScript version of MediaPipe Hands. One of its strengths is that it runs not only in Python but right in a web browser.
-
-```javascript
-// Basic usage of MediaPipe Hands
-import {Hands} from '@mediapipe/hands';
-
-// Hand recognition settings
-const hands = new Hands({
-  maxNumHands: 2,        // Recognize up to 2 hands
-  modelComplexity: 1,    // Model complexity (0-1)
-  minDetectionConfidence: 0.5,  // Detection confidence (0-1)
-});
-```
-
-### Core Technology and Industry Applications
-
-#### 1. Computer vision
-MediaPipe Hands is a technology in the field of **computer vision**. This is the technology of "giving computers eyes" — it extracts meaningful information from camera images.
-
-#### 2. Examples of industry applications
-
-**Manufacturing**
-- Analyzing workers' movements on the factory floor
-- Detecting dangerous movements and issuing warnings
-- Automatically checking manual work for quality control
-
-**Healthcare and Rehabilitation**
-- Supporting hand-movement rehabilitation
-- Automatic sign language translation systems
-- Analyzing surgeons' operating techniques
-
-**Entertainment**
-- Natural hand control in VR/AR
-- Motion controls for games
-- Playing instruments like a virtual piano
-
-**Automotive Industry**
-- Gesture controls while driving
-- Detecting driver fatigue
-- Controlling in-car entertainment
-
-#### 3. Connection to Network Technology
-
-**Edge computing**
-- MediaPipe processes everything on the device (the edge), so there's no network lag
-- It can run fast while keeping your data private
-
-**WebRTC (Web Real-Time Communication)**
-- The technology for handling camera video in the browser
-- It makes real-time video processing possible
-
-### Key Takeaways for Learning
-
-1. **Math matters**: coordinate calculations and matrix operations are used here
-2. **Programming**: real-time processing is implemented in JavaScript
-3. **Problem-solving**: figuring out how to turn hand movements into game controls
-
-By learning technology like this, you could go on to work in fields such as robotics, AI development, and human interface design.
-
-## Requirements
-
-- You need a webcam
-- Chrome is recommended (for MediaPipe compatibility)
-- A well-lit room is recommended
+- [Gesture Customization Guide](./GESTURE_CUSTOMIZATION_GUIDE.md): tracking pipeline, standard gestures, and custom-pose templates
+- [Programming Exercises](./PROGRAMMING_EXERCISES.md): exercises from simple visual changes to larger game features
 
 ## Troubleshooting
 
-### Common Codespaces Problems and Solutions
+### Camera access fails
 
-#### If the port doesn't appear
+- Use `localhost` or HTTPS. Browsers block camera access on insecure remote pages.
+- Check the camera permission in the browser address bar.
+- Close other applications that are using the camera.
+- Reload the page after changing camera permissions.
+
+### A tracking model does not load
+
+- Confirm that the browser has internet access.
+- Reload the page and try the mode again.
+- Check the browser console for a blocked model or WASM request.
+- The first load can take longer because models are several megabytes.
+
+### Tracking is unreliable
+
+- Use even lighting and keep the tracked body part inside the frame.
+- Avoid a background with the same color as your skin or clothing.
+- In eye mode, face the camera and recalibrate center gaze.
+- In full-body mode, make sure the shoulders, arms, hips, knees, and ankles are visible for the standard squat command.
+
+### Vite's port does not appear in Codespaces
+
 ```bash
-# Launch with the host explicitly specified
-npx vite --host 0.0.0.0
-
-# Or launch on a different port
-npx vite --port 3000 --host
+npm run dev -- --host 0.0.0.0
 ```
 
-#### If npm install gives an error
+### Dependencies are inconsistent
+
+Use the committed lockfile to perform a clean installation:
+
 ```bash
-# Clear the cache and reinstall
-rm -rf node_modules package-lock.json
-npm cache clean --force
-npm install
+rm -rf node_modules
+npm ci
 ```
 
-#### If the camera isn't recognized
-1. Check the camera icon on the left side of your browser's address bar
-2. Make sure the camera isn't blocked
-3. Allow it under browser Settings → Privacy and security → Site settings → Camera
-4. Codespaces is served over HTTPS automatically, so camera access works
+## Saving Changes to Your Own Repository
 
-#### If hand recognition isn't working well
-- Make sure there's good contrast between your hand and the background
-- Keep a distance of 30-100 cm from the camera
-- Make sure there's enough light
-- Show your palm clearly toward the camera
+Create an empty repository on GitHub, then update this checkout's remote:
 
-#### If Codespaces feels slow
-1. Check your Codespaces machine type (the free tier has 2 cores and 4GB RAM)
-2. Close unnecessary tabs and applications
-3. Enable hardware acceleration in your browser
+```bash
+git remote rename origin upstream
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
+git push -u origin main
+```
+
+For later changes:
+
+```bash
+git add .
+git commit -m "Describe the change"
+git push
+```
+
+## References
+
+- [MediaPipe Tasks Vision for Web](https://ai.google.dev/edge/mediapipe/solutions/vision)
+- [Hand Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/web_js)
+- [Pose Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
+- [Face Landmarker for Web](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js)
+- [MDN: MediaDevices.getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
 
 ## License
 
